@@ -25,6 +25,7 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -59,7 +60,12 @@ import de.goepfarth.kalenderassistent.calendar.TestDay
 import de.goepfarth.kalenderassistent.calendar.TestEntry
 import de.goepfarth.kalenderassistent.calendar.TestStats
 import de.goepfarth.kalenderassistent.calendar.loadTestAgenda
+import de.goepfarth.kalenderassistent.core.Classification
+import de.goepfarth.kalenderassistent.core.ClassificationReason
 import de.goepfarth.kalenderassistent.core.Clock
+import de.goepfarth.kalenderassistent.core.EventType
+import de.goepfarth.kalenderassistent.core.ScheduleWarning
+import de.goepfarth.kalenderassistent.core.WarningKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
@@ -73,7 +79,7 @@ private val DeviceClock = Clock { System.currentTimeMillis() }
 private val timeFormat = DateTimeFormatter.ofPattern("HH:mm", Locale.GERMAN)
 private val dayFormat = DateTimeFormatter.ofPattern("EEEE, d. MMMM", Locale.GERMAN)
 
-/** Testansicht für Phase A0: zeigt, was die App aus dem Kalenderspeicher liest. */
+/** Testansicht: zeigt, was die App aus dem Kalenderspeicher liest und wie `core` es auswertet. */
 @Composable
 fun TestScreen() {
     val context = LocalContext.current
@@ -146,7 +152,7 @@ fun TestScreen() {
     }
 }
 
-private fun androidx.compose.foundation.lazy.LazyListScope.agendaItems(agenda: TestAgenda) {
+private fun LazyListScope.agendaItems(agenda: TestAgenda) {
     item { SectionTitle(stringResource(R.string.section_calendars)) }
     if (agenda.calendars.isEmpty()) {
         item { MutedText(stringResource(R.string.no_calendars)) }
@@ -162,7 +168,10 @@ private fun androidx.compose.foundation.lazy.LazyListScope.agendaItems(agenda: T
     }
     agenda.days.forEach { day ->
         item(key = "day-${day.date}") { DayHeader(day) }
-        items(day.entries, key = { "ev-${it.event.eventId}-${it.event.begin}" }) { EventRow(it) }
+        if (day.warnings.isNotEmpty()) {
+            item(key = "warn-${day.date}") { WarningsBlock(day.warnings) }
+        }
+        items(day.entries, key = { "ev-${it.item.event.id}" }) { EventRow(it) }
     }
 }
 
@@ -263,10 +272,11 @@ private fun StatsCard(stats: TestStats) {
         modifier = Modifier.fillMaxWidth(),
     ) {
         Column(Modifier.padding(16.dp), verticalArrangement = Arrangement.spacedBy(4.dp)) {
-            Text(stringResource(R.string.stats_total, stats.total))
-            Text(stringResource(R.string.stats_uid, stats.withUid, stats.total))
-            Text(stringResource(R.string.stats_links, stats.withMeetingLink, stats.total))
-            Text(stringResource(R.string.stats_status, stats.canceled, stats.declined, stats.tentative))
+            Text(stringResource(R.string.stats_read, stats.read, stats.merged))
+            Text(stringResource(R.string.stats_uid, stats.withUid, stats.read))
+            Text(stringResource(R.string.stats_types, stats.online, stats.presence, stats.other))
+            Text(stringResource(R.string.stats_status, stats.ignored, stats.tentative))
+            Text(stringResource(R.string.stats_warnings, stats.warnings))
             Spacer(Modifier.height(4.dp))
             MutedText(stringResource(R.string.stats_explanation))
         }
@@ -290,21 +300,52 @@ private fun DayHeader(day: TestDay) {
 }
 
 @Composable
+private fun WarningsBlock(warnings: List<ScheduleWarning>) {
+    Surface(
+        color = MaterialTheme.colorScheme.surfaceVariant,
+        shape = RoundedCornerShape(12.dp),
+        modifier = Modifier.fillMaxWidth().padding(vertical = 4.dp),
+    ) {
+        Column(Modifier.padding(horizontal = 14.dp, vertical = 10.dp), verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            warnings.forEach { warning ->
+                val first = warning.first.event.title
+                val second = warning.second.event.title
+                val text = when (warning.kind) {
+                    WarningKind.OVERLAP -> stringResource(R.string.warning_overlap, first, second, warning.minutes)
+                    WarningKind.NO_BREAK -> if (warning.minutes == 0L) {
+                        stringResource(R.string.warning_no_break_direct, first, second)
+                    } else {
+                        stringResource(R.string.warning_no_break, first, second, warning.minutes)
+                    }
+                    WarningKind.PRESENCE_AFTER_ONLINE ->
+                        stringResource(R.string.warning_presence_after_online, first, second, warning.minutes)
+                }
+                Text(text, style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
+            }
+        }
+    }
+}
+
+@Composable
 private fun EventRow(entry: TestEntry) {
-    val event = entry.event
+    val event = entry.item.event
+    val classification = entry.item.classification
     val zone = ZoneId.systemDefault()
     val time = if (event.allDay) {
         stringResource(R.string.all_day)
     } else {
-        timeFormat.format(Instant.ofEpochMilli(event.begin).atZone(zone)) + "–" +
-            timeFormat.format(Instant.ofEpochMilli(event.end).atZone(zone))
+        timeFormat.format(Instant.ofEpochMilli(event.startMillis).atZone(zone)) + "–" +
+            timeFormat.format(Instant.ofEpochMilli(event.endMillis).atZone(zone))
     }
-    val details = listOfNotNull(entry.calendar?.name, event.location?.takeIf { it.isNotBlank() })
+    val details = listOfNotNull(
+        entry.calendars.joinToString(" + ") { it.name }.ifBlank { null },
+        classification.physicalLocation,
+    )
 
     Row(Modifier.fillMaxWidth().height(IntrinsicSize.Min).padding(vertical = 6.dp)) {
         Box(
             Modifier.width(4.dp).fillMaxHeight().clip(RoundedCornerShape(2.dp))
-                .background(calendarColor(event.color)),
+                .background(calendarColor(entry.color)),
         )
         Spacer(Modifier.width(12.dp))
         Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(2.dp)) {
@@ -319,20 +360,48 @@ private fun EventRow(entry: TestEntry) {
                     overflow = TextOverflow.Ellipsis,
                 )
             }
+            Text(
+                reasonText(classification),
+                style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+            )
             val badges = buildList {
-                entry.meetingLink?.let { add(stringResource(R.string.badge_online, it.provider.displayName) to true) }
-                if (entry.tentative) add(stringResource(R.string.badge_tentative) to false)
-                if (entry.declined) add(stringResource(R.string.badge_declined) to false)
-                if (entry.canceled) add(stringResource(R.string.badge_canceled) to false)
+                add(typeLabel(classification) to (classification.type == EventType.ONLINE))
+                if (event.isTentative) add(stringResource(R.string.badge_tentative) to false)
+                if (event.isIgnored) add(stringResource(R.string.badge_ignored) to false)
+                if (entry.item.calendarIds.size > 1) {
+                    add(stringResource(R.string.badge_merged, entry.item.calendarIds.size) to false)
+                }
                 if (event.uid == null) add(stringResource(R.string.badge_no_uid) to false)
             }
-            if (badges.isNotEmpty()) {
-                Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 2.dp)) {
-                    badges.forEach { (label, accent) -> Badge(label, accent) }
-                }
+            Row(horizontalArrangement = Arrangement.spacedBy(6.dp), modifier = Modifier.padding(top = 2.dp)) {
+                badges.forEach { (label, accent) -> Badge(label, accent) }
             }
         }
     }
+}
+
+@Composable
+private fun typeLabel(classification: Classification): String = when (classification.type) {
+    EventType.ONLINE -> classification.meetingLink
+        ?.let { stringResource(R.string.type_online_with_provider, it.provider.displayName) }
+        ?: stringResource(R.string.type_online)
+    EventType.PRESENCE -> stringResource(R.string.type_presence)
+    EventType.OTHER -> stringResource(R.string.type_other)
+}
+
+@Composable
+private fun reasonText(classification: Classification): String = when (classification.reason) {
+    ClassificationReason.MEETING_LINK ->
+        stringResource(R.string.reason_meeting_link, classification.meetingLink?.provider?.displayName.orEmpty())
+    ClassificationReason.ONLINE_LOCATION -> stringResource(R.string.reason_online_location)
+    ClassificationReason.PHYSICAL_LOCATION -> stringResource(R.string.reason_physical_location)
+    ClassificationReason.HYBRID -> stringResource(
+        if (classification.type == EventType.ONLINE) R.string.reason_hybrid_online else R.string.reason_hybrid_presence,
+    )
+    ClassificationReason.NOTHING_FOUND -> stringResource(R.string.reason_nothing_found)
+    ClassificationReason.CALENDAR_OVERRIDE -> stringResource(R.string.reason_calendar_override)
+    ClassificationReason.EVENT_OVERRIDE -> stringResource(R.string.reason_event_override)
 }
 
 @Composable
