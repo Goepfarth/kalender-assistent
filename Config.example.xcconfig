@@ -1,0 +1,12 @@
+// Vorlage. Kopieren nach Config.xcconfig und Werte eintragen.
+// Config.xcconfig steht in .gitignore und kommt nie ins Repository.
+
+// Eindeutige Bundle-ID, z. B. de.deinname.kalenderassistent
+PRODUCT_BUNDLE_IDENTIFIER = de.example.kalenderassistent
+
+// Nur für den Graph-Weg, mit EventKit leer lassen.
+// Anwendungs-ID (Client) aus der Entra-App-Registrierung, siehe docs/ENTRA-EINRICHTUNG.md
+MSAL_CLIENT_ID = 00000000-0000-0000-0000-000000000000
+
+// Nur für den Graph-Weg. Redirect-URI für MSAL. "$()" verhindert, dass "//" als Kommentar gelesen wird.
+MSAL_REDIRECT_URI = msauth.$(PRODUCT_BUNDLE_IDENTIFIER):/$()/auth
