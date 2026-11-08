@@ -2,6 +2,51 @@
 
 Eine private iPhone-App (später auch Mac), die mehrere Outlook-Kalender zusammenführt, jeden Morgen ein Briefing erstellt und rechtzeitig an Termine erinnert.
 
+## Was die App kann (Phase 1)
+
+**Kalender**
+- liest deine 3 Outlook-Kalender (privat und Arbeit) über die iOS-Konten, **nur lesend**
+- pro Kalender an/aus, Farbe und Kurzname
+- ignoriert abgesagte und abgelehnte Termine, markiert vorläufige
+- zeigt dieselbe Besprechung aus zwei Kalendern nur einmal
+- behandelt Zeitzonen, Sommerzeit, ganztägige und mehrtägige Termine richtig
+- funktioniert auch ohne Netz
+
+**Terminarten**
+- erkennt automatisch Online, Präsenz oder Sonstig und sagt, warum („wegen Teams-Link")
+- hybride Termine zählen als Präsenz, der Link wird trotzdem angezeigt
+- Terminart pro Kalender oder Termin überschreibbar, Termine als „wichtig" markierbar
+
+**Morgenbriefing** (pro Wochentag an/aus und eigene Uhrzeit)
+- Heute: alle Termine chronologisch, mit Button „Teilnehmen" oder Ort
+- Warnungen: Überschneidungen, keine Pause, Präsenz direkt nach Online
+- freie Zeitfenster
+- Präsenztermine in 2 Tagen (immer da, auch wenn leer)
+- Vorschau auf morgen
+- kommt als Benachrichtigung mit Kurzfassung und Stand und steht ausführlich in der App; Abschnitte einzeln ein- und ausblendbar
+
+**Erinnerungen** (als Benachrichtigung)
+- Online-Termine: 15 Min. vorher, mit Button „Teilnehmen"
+- Präsenztermine: am Vortag, optional zusätzlich am Termintag
+- Sonstige Termine: standardmäßig keine
+- verschobene Termine: Erinnerung wandert mit; abgesagte: Erinnerung verschwindet. Duplikate gibt es keine.
+- Ruhezeiten mit eigenem Verhalten pro Erinnerungsart und Vorschau; wichtige Termine dürfen durch
+
+**Aktualität**
+- aktualisiert beim Start, beim Öffnen und im Hintergrund
+- zeigt „Zuletzt synchronisiert um …" und warnt, wenn der Stand alt ist
+
+**Einstellungen:** Alles, was sinnvoll ist, ist einstellbar (Liste in [docs/PLAN.md](docs/PLAN.md), Abschnitt 5).
+
+**Was die App nicht tut**
+- keine Termine erstellen, ändern, löschen oder Einladungen beantworten
+- keine Daten ins Internet schicken, kein Tracking
+- keine Fahrzeit (später nachrüstbar)
+- die Outlook-Wichtigkeit nicht automatisch übernehmen
+- ohne bezahlten Apple-Account nicht durch einen aktiven Fokus-Modus durchkommen
+
+**Später:** Phase 2 bringt Snooze und „Erledigt" in der Benachrichtigung, Widgets, Konflikte über mehrere Tage und eine Wochenvorschau am Sonntagabend. Phase 4 bringt eine Mac-App in der Menüleiste.
+
 ## Status
 
 | Phase | Stand |

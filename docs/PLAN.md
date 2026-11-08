@@ -19,6 +19,7 @@ Grundlage: [AUFTRAG.md](AUFTRAG.md) (der ursprüngliche Auftrag, Abschnittsnumme
 | Plattform | iPhone zuerst (iOS 17+), danach Mac (macOS 14+). Swift/SwiftUI. Gebaut wird auf dem Mac mit Xcode (macOS 27). |
 | Konten | 2 Microsoft-Konten derselben Person (privat und Arbeit), zusammen 3 Kalender. |
 | Datenquelle | **EventKit**, entschieden nach Phase 0a. Graph wird nicht gebaut und bleibt nur als Ausweichweg beschrieben. |
+| Kalenderzugriff | **Nur lesen.** Die App erstellt, ändert oder löscht nie Termine und beantwortet keine Einladungen. Eigene Markierungen (Terminart, „wichtig") bleiben nur in der App. |
 | Geteilte Kalender | Nicht genannt. Annahme: keine. |
 | Verteilung | Nur für den Eigengebrauch, kein App Store. |
 | Entwickleraccount | Start mit kostenlosem Account (Abschnitt 8). |
@@ -62,7 +63,7 @@ Nachteile:
 - Die Outlook-Wichtigkeit fehlt. „Wichtig" geht dann nur manuell in der App.
 - Online-Termine werden nur über Links in Ort, URL-Feld und Notizen erkannt (Regex), nicht über ein eigenes Feld. Teams-Einladungen enthalten den Link normalerweise in der Beschreibung. Phase 0a prüft das.
 - Duplikate: EventKit liefert die externe ID des Kalenderservers. Ob sie für dieselbe Besprechung in zwei Kalendern gleich ist, prüft Phase 0b. Rückfallebene: gleicher Titel, gleicher Beginn und gleiches Ende.
-- Die App braucht zusätzlich die Berechtigung „Kalender: Vollzugriff".
+- Die App braucht zusätzlich die Berechtigung „Kalender: Vollzugriff". iOS kennt keinen reinen Lesezugriff, „Vollzugriff" erlaubt technisch auch Schreiben. Die App nutzt das nie: Nur `EventKitSource` greift auf `EKEventStore` zu, und zwar ausschließlich mit Lesemethoden. Ein Test durchsucht den Quellcode nach Schreibaufrufen (`save`, `remove`, `commit`).
 - Der Arbeitgeber muss erlauben, dass das Arbeitskonto in der iOS-Kalender-App läuft.
 
 Abgesagte, abgelehnte und vorläufige Termine erkennt EventKit über Terminstatus und eigenen Teilnahmestatus. Die Regeln aus dem Auftrag gelten unverändert.

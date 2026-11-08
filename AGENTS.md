@@ -11,6 +11,7 @@ Lies vor jeder Arbeit:
 - Baue keine Funktionen, die nicht im Plan stehen, ohne sie vorher vorzuschlagen und eine Freigabe abzuwarten.
 - Benenne technische Einschränkungen offen und schlage Alternativen vor.
 - Was sinnvoll individuell einstellbar ist, wird einstellbar gebaut, mit gutem Standardwert. Neue Einstellungen kommen in die Tabelle in PLAN.md, Abschnitt 5. Häufige Einstellungen stehen oben, Schwellwerte unter „Erweitert".
+- Die App liest Kalender nur. Nur `EventKitSource` greift auf `EKEventStore` zu, ausschließlich mit Lesemethoden. Keine Aufrufe von `save`, `remove` oder `commit`. Ein Test prüft das im Quellcode.
 - `Core` nutzt nur Foundation. Zeit kommt über das `Clock`-Protokoll, nie über `Date()`.
 - Jede Logik in `Core` hat Unit-Tests (Swift Testing). Führe nach jeder Änderung `swift test` im `Core`-Package aus, für App-Targets `xcodebuild test`.
 - Keine Secrets im Repository. Bundle-ID und gegebenenfalls Client-ID stehen nur in `Config.xcconfig`, das in `.gitignore` steht. Die Vorlage ist `Config.example.xcconfig`.
