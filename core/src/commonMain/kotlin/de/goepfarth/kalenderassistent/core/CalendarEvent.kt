@@ -16,6 +16,10 @@ data class CalendarEvent(
     /** Millisekunden seit 1970-01-01T00:00:00Z. */
     val startMillis: Long,
     val endMillis: Long,
+    /**
+     * Ganztägige Termine geben Beginn und Ende als Mitternacht in UTC an, das Ende exklusiv
+     * (so speichert sie Android). Der iOS-Adapter rechnet in diese Form um.
+     */
     val allDay: Boolean = false,
     val location: String? = null,
     val description: String? = null,

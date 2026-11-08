@@ -4,8 +4,10 @@ kotlin = "2.2.21"
 composeBom = "2025.10.01"
 activityCompose = "1.11.0"
 lifecycle = "2.9.4"
+kotlinxDatetime = "0.7.1"
 
 [libraries]
+kotlinx-datetime = { module = "org.jetbrains.kotlinx:kotlinx-datetime", version.ref = "kotlinxDatetime" }
 androidx-activity-compose = { module = "androidx.activity:activity-compose", version.ref = "activityCompose" }
 androidx-compose-bom = { module = "androidx.compose:compose-bom", version.ref = "composeBom" }
 androidx-compose-ui = { module = "androidx.compose.ui:ui" }

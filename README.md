@@ -53,7 +53,7 @@ Eine private App für Android und iPhone (später auch Mac). Sie führt die Kale
 |---|---|
 | 0a Kontentest auf dem iPhone | erledigt: beide Konten in iOS |
 | A0 Android-Grundgerüst und Machbarkeit | erledigt: App liest alle Kalender auf dem Galaxy S24+ |
-| 1 Kern auf Android | 1a in Arbeit: Terminarten, Duplikate und Warnungen fertig (31 Tests grün) |
+| 1 Kern auf Android | 1a in Arbeit: Terminarten, Duplikate, Warnungen und Briefing fertig (43 Tests grün); offen: Einstellungen, Ruhezeiten, Erinnerungsplanung |
 | 1i iPhone | offen |
 | 2 Komfort | offen |
 | 3 Apple Watch (optional) | offen |
@@ -61,11 +61,12 @@ Eine private App für Android und iPhone (später auch Mac). Sie führt die Kale
 
 ### So probierst du den aktuellen Stand aus
 
-Die App zeigt noch eine Testansicht, das eigentliche Briefing kommt in Phase 1d.
-1. App öffnen. Unter „Termine der nächsten 7 Tage" steht bei jedem Termin die erkannte Terminart (Online, Präsenz, Sonstig) und der Grund dafür.
-2. Im Samsung Kalender zwei Termine anlegen, die sich überschneiden, und einen dritten direkt danach. Zurück in der App erscheinen unter dem Tag die Warnungen „Überschneidung" und „Keine Pause".
-3. Einen Termin mit Ort direkt nach einem Teams-Termin: Warnung „Präsenz direkt nach Online".
-4. Steht dieselbe Besprechung in zwei Kalendern, erscheint sie nur einmal, mit „in 2 Kalendern".
+Die App zeigt das Briefing noch in einer schlichten Testansicht, das eigentliche Design kommt in Phase 1d.
+1. App öffnen. Oben stehen die Abschnitte des Briefings: Heute, Warnungen, Freie Zeitfenster, Präsenztermine in 2 Tagen, Morgen. Bei jedem Termin stehen Terminart (Online, Präsenz, Sonstig) und der Grund dafür.
+2. Im Samsung Kalender zwei Termine für heute anlegen, die sich überschneiden, und einen dritten direkt danach. Zurück in der App erscheinen unter „Warnungen" eine Überschneidung und „Keine Pause"; die freien Zeitfenster passen sich an.
+3. Einen Termin mit Ort (z. B. „Hauptstraße 1") für übermorgen anlegen: Er erscheint unter „Präsenztermine in 2 Tagen".
+4. Einen ganztägigen Termin über drei Tage anlegen: Er zeigt „Tag 1 von 3", morgen „Tag 2 von 3".
+5. Steht dieselbe Besprechung in zwei Kalendern, erscheint sie nur einmal, mit „in 2 Kalendern".
 
 ## Projektaufbau
 

@@ -56,7 +56,6 @@ import androidx.lifecycle.compose.LifecycleResumeEffect
 import de.goepfarth.kalenderassistent.R
 import de.goepfarth.kalenderassistent.calendar.CalendarSummary
 import de.goepfarth.kalenderassistent.calendar.TestAgenda
-import de.goepfarth.kalenderassistent.calendar.TestDay
 import de.goepfarth.kalenderassistent.calendar.TestEntry
 import de.goepfarth.kalenderassistent.calendar.TestStats
 import de.goepfarth.kalenderassistent.calendar.loadTestAgenda
@@ -65,12 +64,13 @@ import de.goepfarth.kalenderassistent.core.ClassificationReason
 import de.goepfarth.kalenderassistent.core.Clock
 import de.goepfarth.kalenderassistent.core.EventType
 import de.goepfarth.kalenderassistent.core.ScheduleWarning
+import de.goepfarth.kalenderassistent.core.TimeSlot
 import de.goepfarth.kalenderassistent.core.WarningKind
 import kotlinx.coroutines.CancellationException
 import kotlinx.coroutines.Dispatchers
 import kotlinx.coroutines.withContext
+import kotlinx.datetime.toJavaLocalDate
 import java.time.Instant
-import java.time.LocalDate
 import java.time.ZoneId
 import java.time.format.DateTimeFormatter
 import java.util.Locale
@@ -152,7 +152,54 @@ fun TestScreen() {
     }
 }
 
+// Abschnitte in der Reihenfolge aus dem Auftrag; ein ausgeschalteter Abschnitt ist `null`.
 private fun LazyListScope.agendaItems(agenda: TestAgenda) {
+    val briefing = agenda.briefing
+
+    if (briefing.today != null) {
+        item { BriefingTitle(stringResource(R.string.section_today), dayFormat.format(briefing.date.toJavaLocalDate())) }
+        if (agenda.today.isEmpty()) item { MutedText(stringResource(R.string.no_events_today)) }
+        items(agenda.today, key = { "today-${it.item.event.event.id}" }) { EventRow(it) }
+    }
+
+    briefing.warnings?.let { warnings ->
+        item { BriefingTitle(stringResource(R.string.section_warnings)) }
+        item {
+            if (warnings.isEmpty()) MutedText(stringResource(R.string.no_warnings)) else WarningsBlock(warnings)
+        }
+    }
+
+    briefing.freeSlots?.let { slots ->
+        item { BriefingTitle(stringResource(R.string.section_free_slots)) }
+        if (slots.isEmpty()) item { MutedText(stringResource(R.string.no_free_slots)) }
+        items(slots, key = { "slot-${it.startMillis}" }) { SlotRow(it) }
+    }
+
+    briefing.presenceAhead?.let { ahead ->
+        val days = (ahead.date.toEpochDays() - briefing.date.toEpochDays()).toInt()
+        item {
+            BriefingTitle(stringResource(R.string.section_presence_ahead, days), dayFormat.format(ahead.date.toJavaLocalDate()))
+        }
+        if (agenda.presenceAhead.isEmpty()) {
+            item {
+                MutedText(
+                    if (days == 2) {
+                        stringResource(R.string.no_presence_day_after_tomorrow)
+                    } else {
+                        stringResource(R.string.no_presence_on, dayFormat.format(ahead.date.toJavaLocalDate()))
+                    },
+                )
+            }
+        }
+        items(agenda.presenceAhead, key = { "ahead-${it.item.event.event.id}" }) { EventRow(it) }
+    }
+
+    if (briefing.tomorrow != null) {
+        item { BriefingTitle(stringResource(R.string.tomorrow)) }
+        if (agenda.tomorrow.isEmpty()) item { MutedText(stringResource(R.string.no_events_tomorrow)) }
+        items(agenda.tomorrow, key = { "tomorrow-${it.item.event.event.id}" }) { EventRow(it) }
+    }
+
     item { SectionTitle(stringResource(R.string.section_calendars)) }
     if (agenda.calendars.isEmpty()) {
         item { MutedText(stringResource(R.string.no_calendars)) }
@@ -161,18 +208,6 @@ private fun LazyListScope.agendaItems(agenda: TestAgenda) {
 
     item { SectionTitle(stringResource(R.string.section_checks)) }
     item { StatsCard(agenda.stats) }
-
-    item { SectionTitle(stringResource(R.string.section_events)) }
-    if (agenda.days.isEmpty()) {
-        item { MutedText(stringResource(R.string.no_events)) }
-    }
-    agenda.days.forEach { day ->
-        item(key = "day-${day.date}") { DayHeader(day) }
-        if (day.warnings.isNotEmpty()) {
-            item(key = "warn-${day.date}") { WarningsBlock(day.warnings) }
-        }
-        items(day.entries, key = { "ev-${it.item.event.id}" }) { EventRow(it) }
-    }
 }
 
 @Composable
@@ -276,7 +311,6 @@ private fun StatsCard(stats: TestStats) {
             Text(stringResource(R.string.stats_uid, stats.withUid, stats.read))
             Text(stringResource(R.string.stats_types, stats.online, stats.presence, stats.other))
             Text(stringResource(R.string.stats_status, stats.ignored, stats.tentative))
-            Text(stringResource(R.string.stats_warnings, stats.warnings))
             Spacer(Modifier.height(4.dp))
             MutedText(stringResource(R.string.stats_explanation))
         }
@@ -284,19 +318,29 @@ private fun StatsCard(stats: TestStats) {
 }
 
 @Composable
-private fun DayHeader(day: TestDay) {
-    val today = LocalDate.now()
-    val prefix = when (day.date) {
-        today -> stringResource(R.string.today) + " · "
-        today.plusDays(1) -> stringResource(R.string.tomorrow) + " · "
-        else -> ""
+private fun BriefingTitle(title: String, subtitle: String? = null) {
+    Column(Modifier.padding(top = 24.dp, bottom = 6.dp)) {
+        Text(title, style = MaterialTheme.typography.titleMedium, fontWeight = FontWeight.SemiBold)
+        if (subtitle != null) MutedText(subtitle)
     }
-    Text(
-        prefix + dayFormat.format(day.date),
-        style = MaterialTheme.typography.titleMedium,
-        fontWeight = FontWeight.SemiBold,
-        modifier = Modifier.padding(top = 20.dp, bottom = 4.dp),
-    )
+}
+
+@Composable
+private fun SlotRow(slot: TimeSlot) {
+    val zone = ZoneId.systemDefault()
+    val range = timeFormat.format(Instant.ofEpochMilli(slot.startMillis).atZone(zone)) + "–" +
+        timeFormat.format(Instant.ofEpochMilli(slot.endMillis).atZone(zone))
+    val hours = slot.minutes / 60
+    val minutes = slot.minutes % 60
+    val duration = when {
+        hours == 0L -> stringResource(R.string.duration_minutes, minutes)
+        minutes == 0L -> stringResource(R.string.duration_hours, hours)
+        else -> stringResource(R.string.duration_hours_minutes, hours, minutes)
+    }
+    Row(Modifier.fillMaxWidth().padding(vertical = 4.dp)) {
+        Text(range, style = MaterialTheme.typography.bodyLarge, modifier = Modifier.weight(1f))
+        MutedText(duration)
+    }
 }
 
 @Composable
@@ -328,8 +372,9 @@ private fun WarningsBlock(warnings: List<ScheduleWarning>) {
 
 @Composable
 private fun EventRow(entry: TestEntry) {
-    val event = entry.item.event
-    val classification = entry.item.classification
+    val classified = entry.item.event
+    val event = classified.event
+    val classification = classified.classification
     val zone = ZoneId.systemDefault()
     val time = if (event.allDay) {
         stringResource(R.string.all_day)
@@ -367,10 +412,12 @@ private fun EventRow(entry: TestEntry) {
             )
             val badges = buildList {
                 add(typeLabel(classification) to (classification.type == EventType.ONLINE))
+                if (entry.item.isMultiDay) {
+                    add(stringResource(R.string.badge_multi_day, entry.item.dayNumber, entry.item.dayCount) to false)
+                }
                 if (event.isTentative) add(stringResource(R.string.badge_tentative) to false)
-                if (event.isIgnored) add(stringResource(R.string.badge_ignored) to false)
-                if (entry.item.calendarIds.size > 1) {
-                    add(stringResource(R.string.badge_merged, entry.item.calendarIds.size) to false)
+                if (classified.calendarIds.size > 1) {
+                    add(stringResource(R.string.badge_merged, classified.calendarIds.size) to false)
                 }
                 if (event.uid == null) add(stringResource(R.string.badge_no_uid) to false)
             }

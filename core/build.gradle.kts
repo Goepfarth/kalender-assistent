@@ -10,6 +10,13 @@ kotlin {
     jvm()
 
     sourceSets {
+        all {
+            // kotlinx-datetime 0.7 nutzt kotlin.time.Instant, das in Kotlin 2.2 noch experimentell ist.
+            languageSettings.optIn("kotlin.time.ExperimentalTime")
+        }
+        commonMain.dependencies {
+            api(libs.kotlinx.datetime)
+        }
         commonTest.dependencies {
             implementation(kotlin("test"))
         }
