@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="108dp"
+    android:height="108dp"
+    android:viewportWidth="108"
+    android:viewportHeight="108">
+    <!-- Kalenderblatt -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M37,38h34a5,5 0 0 1 5,5v28a5,5 0 0 1 -5,5h-34a5,5 0 0 1 -5,-5v-28a5,5 0 0 1 5,-5z" />
+    <!-- Kopfleiste -->
+    <path
+        android:fillColor="#C5D0FA"
+        android:pathData="M32,43a5,5 0 0 1 5,-5h34a5,5 0 0 1 5,5v5h-44z" />
+    <!-- Ringe -->
+    <path
+        android:fillColor="#FFFFFF"
+        android:pathData="M42,32h4v10h-4z M62,32h4v10h-4z" />
+    <!-- nächster Termin -->
+    <path
+        android:fillColor="#3B5BDB"
+        android:pathData="M49,62a5,5 0 1 0 10,0a5,5 0 1 0 -10,0z" />
+</vector>

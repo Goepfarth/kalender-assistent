@@ -1,121 +1,86 @@
 # Plan: Kalender-Assistent
 
-Status: **Freigegeben (Version 3)** · Stand 08.11.2026 · Phase 0a erledigt: Beide Konten laufen in iOS, die Datenquelle ist EventKit.
+Status: **Freigegeben (Version 4)** · Stand 08.11.2026
 Grundlage: [AUFTRAG.md](AUFTRAG.md) (der ursprüngliche Auftrag, Abschnittsnummern beziehen sich darauf). Wo dieser Plan vom Auftrag abweicht, gilt der Plan.
 
-Änderungen gegenüber Version 2:
-- **Datenquelle:** EventKit ist jetzt der bevorzugte Weg, ohne App-Registrierung bei Microsoft. Graph bleibt Ausweichweg (Abschnitt 2).
-- **Phase 0a** ist jetzt ein Kontentest auf dem iPhone statt im Browser.
-- **Grundsatz Einstellbarkeit:** Was sinnvoll individuell einstellbar ist, wird einstellbar gebaut (Abschnitt 5).
-- **Morgenbriefing** pro Wochentag einstellbar. Die Vortags-Erinnerung gilt ausdrücklich nur für Präsenztermine.
-- **Neue Grenze:** doppelte Benachrichtigungen durch die Outlook-App und Apple Kalender (Abschnitt 4).
+Änderungen gegenüber Version 3:
+- **Zwei Plattformen:** Android (Handy der Mutter, zuerst zum Testen mit den eigenen Kalendern) und iPhone, danach Mac. **Android kommt zuerst.**
+- **Gemeinsamer Kern in Kotlin Multiplatform** statt in Swift. Die Oberfläche bleibt pro Plattform nativ: Jetpack Compose auf Android, SwiftUI auf iPhone und Mac.
+- Android-Besonderheiten und -Grenzen ergänzt (Abschnitt 4).
+- Phasen neu geordnet (Abschnitt 6).
 
-Änderungen in Version 2: Die Erinnerungen-App von Apple entfällt, die App erinnert selbst per Benachrichtigung. Akzeptanzkriterien angepasst (Abschnitt 7).
+Frühere Versionen: Die Erinnerungen-App von Apple entfällt (V2). Die Datenquelle ist der Kalender des Geräts, keine App-Registrierung bei Microsoft (V3). Die App liest Kalender nur (V3).
 
 ## 1. Entscheidungen
 
 | Thema | Entscheidung |
 |---|---|
-| Plattform | iPhone zuerst (iOS 17+), danach Mac (macOS 14+). Swift/SwiftUI. Gebaut wird auf dem Mac mit Xcode (macOS 27). |
-| Konten | 2 Microsoft-Konten derselben Person (privat und Arbeit), zusammen 3 Kalender. |
-| Datenquelle | **EventKit**, entschieden nach Phase 0a. Graph wird nicht gebaut und bleibt nur als Ausweichweg beschrieben. |
+| Plattformen | Android (minSdk 26, Android 8) zuerst, dann iPhone (iOS 17+), dann Mac (macOS 14+) |
+| Technik | Kern in Kotlin Multiplatform (`core`), Oberfläche nativ: Jetpack Compose (Android), SwiftUI (iPhone, Mac) |
+| Nutzer | Du (iPhone) und deine Mutter (Android). Jedes Gerät arbeitet für sich, es gibt keinen Austausch zwischen den Geräten. |
+| Datenquelle | Der Kalender des Geräts: Android-Kalenderspeicher (bei deiner Mutter Samsung Kalender), iOS EventKit. Keine App-Registrierung bei Microsoft. |
 | Kalenderzugriff | **Nur lesen.** Die App erstellt, ändert oder löscht nie Termine und beantwortet keine Einladungen. Eigene Markierungen (Terminart, „wichtig") bleiben nur in der App. |
-| Geteilte Kalender | Nicht genannt. Annahme: keine. |
-| Verteilung | Nur für den Eigengebrauch, kein App Store. |
-| Entwickleraccount | Start mit kostenlosem Account (Abschnitt 8). |
-| Sonderregeln | Keine. |
+| Internet | Die App baut keine Verbindungen auf. Die Android-App hat nicht einmal die Berechtigung dazu. |
+| Konten | Bei dir 2 Microsoft-Konten (privat und Arbeit) mit zusammen 3 Kalendern. Deine Mutter: ihre Kalender im Samsung Kalender. |
+| Verteilung | Privat, kein App Store, kein Google Play. Android: APK direkt aufs Handy. iPhone: über Xcode. |
+| Entwickleraccount | Android: keiner nötig. Apple: Start mit kostenlosem Account (Abschnitt 8). |
 | Erinnerungen-App | Entfällt. Alle Erinnerungen sind Benachrichtigungen der App. |
 | Einstellbarkeit | Alles, was sinnvoll individuell einstellbar ist, wird einstellbar, mit gutem Standardwert (Abschnitt 5). |
-| Fahrzeit | Gestrichen: keine MapKit-Fahrzeit, kein „Jetzt losfahren", keine Fahrzeit im Briefing. Später nachrüstbar. |
-| „Wichtig" | Manuell in der App markierbar. Die Outlook-Wichtigkeit liefert EventKit nicht. |
+| Fahrzeit | Gestrichen. Später nachrüstbar. |
+| „Wichtig" | Manuell in der App markierbar. Die Outlook-Wichtigkeit liefern die Gerätekalender nicht. |
 | Vorbereitungshinweis | Entfällt in der ersten Version. |
-| Design | Minimalistisch, native iOS-Optik (Abschnitt 11). |
-| Ablage | Privates GitHub-Repository. |
+| Sonderregeln, geteilte Kalender | Keine (Annahme). |
+| Design | Minimalistisch, auf jeder Plattform mit nativer Optik (Abschnitt 11). |
+| Ablage | Privates GitHub-Repository `Goepfarth/kalender-assistent` |
 
-Phasenzuordnung:
-- Join-Button in der Online-Benachrichtigung: Phase 1. Snooze und „Erledigt": Phase 2.
-- Warnhinweise im Tagesbriefing (Überschneidung, keine Pause, Präsenz direkt nach Online): Phase 1. Konfliktauswertung über mehrere Tage: Phase 2.
-- Widget: Phase 2.
-
-### Folgen des Wegfalls der Erinnerungen-App
-
-- **Einfacher:** kein Zugriff auf die Erinnerungen-App, keine doppelten Einträge über iCloud zwischen iPhone und Mac.
-- **Nachteil:** Ein Eintrag in der Erinnerungen-App bleibt stehen, bis du ihn abhakst. Eine weggewischte Benachrichtigung ist dagegen weg. Ausgleich: Benachrichtigungen bleiben in der Mitteilungszentrale, bis du sie entfernst, und die App zeigt anstehende Präsenztermine im Briefing. Die Apple Watch spiegelt iPhone-Benachrichtigungen ohnehin.
-- **64er-Limit:** Die Präsenz-Erinnerungen zählen jetzt mit zum Budget (Abschnitt 4).
+Phasenzuordnung: Join-Button in der Online-Benachrichtigung in Phase 1, Snooze und „Erledigt" in Phase 2. Warnhinweise im Tagesbriefing in Phase 1, Konflikte über mehrere Tage in Phase 2. Widget in Phase 2.
 
 ## 2. Datenquelle
 
-Jede App, die selbst mit Microsofts Servern spricht, braucht eine App-Registrierung bei Microsoft, auch eine rein private. Das lässt sich nur umgehen, wenn iOS die Verbindung zu Microsoft übernimmt und die App die Termine vom iPhone liest.
+Die App liest die Termine aus dem Kalender des Geräts. Das Gerät selbst hält die Verbindung zu Microsoft, Google oder Samsung. Deshalb braucht die App keine App-Registrierung bei Microsoft, keine Anmeldung und keine Tokens.
 
-**Entschieden: EventKit.** Beide Konten ließen sich in iOS einrichten (Phase 0a, 08.11.2026).
+**Android:** Kalenderspeicher (`CalendarContract`). Alles, was im Samsung Kalender oder Google Kalender erscheint, kann die App lesen, auch Outlook-Konten, wenn sie im Samsung Kalender eingebunden sind.
+- Berechtigung: „Kalender lesen" (`READ_CALENDAR`). Android hat, anders als iOS, eine echte Nur-Lese-Berechtigung.
+- Serientermine expandiert der Kalenderspeicher selbst (`Instances`).
+- Duplikate: über die iCalendar-UID (`UID_2445`), falls der Kalender sie liefert. Phase A0 prüft das. Rückfallebene: gleicher Titel, gleicher Beginn und gleiches Ende.
 
-### Gewählt: EventKit (Weg B), ohne App-Registrierung
+**iPhone und Mac:** EventKit, mit den in den Einstellungen eingerichteten Konten (Phase 0a erledigt: beide Konten klappen). iOS kennt keinen reinen Lesezugriff, „Kalender: Vollzugriff" erlaubt technisch auch Schreiben. Die App nutzt das nie.
 
-Beide Konten werden einmal in den iPhone-Einstellungen eingerichtet: das private als „Outlook.com", das Arbeitskonto als „Microsoft Exchange". iOS synchronisiert sie selbst, die App liest sie über EventKit.
+**Für beide gilt:**
+- Online-Termine werden über Links in Ort und Beschreibung erkannt: Teams, Zoom, Google Meet, Webex, auch hinter Microsoft-„Safe Links". Ob die Links in den Gerätekalendern ankommen, prüfen Phase A0 (Android) und Phase 0a (iPhone, noch offen).
+- Abgesagte, abgelehnte und vorläufige Termine erkennt die App über Terminstatus und eigenen Teilnahmestatus.
+- Nur der jeweilige Kalender-Adapter greift auf den Kalender zu, ausschließlich mit Lesemethoden. Ein Test durchsucht den Quellcode nach Schreibaufrufen.
 
-Vorteile:
-- keine App-Registrierung, kein Azure-Konto, keine Kreditkarte
-- keine Microsoft-Anmeldung in der App, kein MSAL, keine Tokens
-- iOS hält die Termine selbst aktuell, auch wenn die App nicht läuft
-- funktioniert genauso auf dem Mac (Phase 4)
-
-Nachteile:
-- Die Outlook-Wichtigkeit fehlt. „Wichtig" geht dann nur manuell in der App.
-- Online-Termine werden nur über Links in Ort, URL-Feld und Notizen erkannt (Regex), nicht über ein eigenes Feld. Teams-Einladungen enthalten den Link normalerweise in der Beschreibung. Phase 0a prüft das.
-- Duplikate: EventKit liefert die externe ID des Kalenderservers. Ob sie für dieselbe Besprechung in zwei Kalendern gleich ist, prüft Phase 0b. Rückfallebene: gleicher Titel, gleicher Beginn und gleiches Ende.
-- Die App braucht zusätzlich die Berechtigung „Kalender: Vollzugriff". iOS kennt keinen reinen Lesezugriff, „Vollzugriff" erlaubt technisch auch Schreiben. Die App nutzt das nie: Nur `EventKitSource` greift auf `EKEventStore` zu, und zwar ausschließlich mit Lesemethoden. Ein Test durchsucht den Quellcode nach Schreibaufrufen (`save`, `remove`, `commit`).
-- Der Arbeitgeber muss erlauben, dass das Arbeitskonto in der iOS-Kalender-App läuft.
-
-Abgesagte, abgelehnte und vorläufige Termine erkennt EventKit über Terminstatus und eigenen Teilnahmestatus. Die Regeln aus dem Auftrag gelten unverändert.
-
-### Ausweichweg: Microsoft Graph (Weg A), mit App-Registrierung
-
-Nur nötig, wenn sich ein Konto nicht in iOS einrichten lässt, und dann nur für dieses Konto. Ehrlicher Hinweis: Wenn der Arbeitgeber das Arbeitskonto in der iOS-Kalender-App sperrt, sperrt er oft auch fremde Apps. Dann bleibt nur, die IT zu fragen.
-
-- Liefert zusätzlich `isOnlineMeeting`, `onlineMeeting.joinUrl`, `importance` und `iCalUId`. `calendarView` expandiert Serientermine serverseitig.
-- Scopes: `Calendars.Read`, `offline_access`. Anmeldung über MSAL als Public Client mit PKCE, ohne Client-Secret. Tokens liegen nur im Keychain.
-- App-Registrierung in einem eigenen Entra-Tenant: [ENTRA-EINRICHTUNG.md](ENTRA-EINRICHTUNG.md).
-
-Beide Wege stecken hinter dem Protokoll `CalendarSource`. Mischen geht auch, zum Beispiel privat über EventKit und Arbeit über Graph. ICS-Abos sind nicht eingeplant (verzögert, und wer den Link kennt, sieht die Termine).
+**Ausweichweg Microsoft Graph:** nur für den Fall, dass ein Konto nicht im Gerätekalender auftaucht. Wird nicht gebaut. Anleitung für den Notfall: [ENTRA-EINRICHTUNG.md](ENTRA-EINRICHTUNG.md).
 
 ## 3. Architektur
 
 ```
 kalender-assistent/
-├── Core/                 Swift-Package, nur Foundation, keine Apple-UI-Frameworks
-│   ├── Model             Termin, Kalender, Konto (normalisiert, quellenunabhängig)
-│   ├── Normalization     Quelldaten → Termin, Zeitzonen, ganztägig/mehrtägig, Duplikate
-│   ├── Classification    Online / Präsenz / Sonstig, mit Begründung und Overrides
-│   ├── Rules             Erinnerungsregeln, Ruhezeiten
-│   ├── Settings          alle Einstellungen mit Standardwerten (Abschnitt 5)
-│   ├── Scheduling        Soll-Plan aller Benachrichtigungen, Abgleich mit Ist, 64er-Budget
-│   └── Briefing          Heute, Warnungen, freie Zeitfenster, Präsenz in N Tagen, Vorschau morgen
-├── Adapters/             Plattformcode hinter Protokollen aus Core
-│   ├── EventKitSource    Termine aus den in iOS eingerichteten Konten
-│   ├── GraphSource       nur falls nötig: MSAL, calendarView, Token im Keychain
-│   ├── Store             SwiftData: Einstellungen, Overrides, Sync-Stand, Cache (für Graph)
-│   ├── Notifications     UNUserNotificationCenter, Aktion „Teilnehmen"
-│   └── BackgroundSync    BGAppRefreshTask, BGProcessingTask
-├── App-iOS/              SwiftUI, dünn
-├── App-macOS/            Phase 4
+├── core/                 Kotlin Multiplatform, gemeinsamer Kern ohne Plattformcode
+│   └── src/commonMain    Model, Normalisierung, Klassifikation, Regeln, Einstellungen,
+│                         Ruhezeiten, Scheduling, Briefing
+├── androidApp/           Android: Jetpack Compose und Adapter
+│                         (Kalenderspeicher, Alarme, Benachrichtigungen, WorkManager)
+├── iosApp/               iPhone: SwiftUI und Adapter (EventKit, Benachrichtigungen, BGTasks)
+├── macApp/               Mac: SwiftUI-Menüleisten-App (Phase 4)
 └── docs/
 ```
 
-Schichten wie in Abschnitt 10 gefordert: Datenquelle → Normalisierung → Klassifikation → Regelengine → Scheduling. `Core` enthält nur reine Logik und ist mit `swift test` ohne iPhone testbar. Zeit kommt immer über ein `Clock`-Protokoll, nie über `Date()`. Tests nutzen Swift Testing, der Code den Swift-6-Sprachmodus.
+Schichten wie in Abschnitt 10 des Auftrags: Datenquelle → Normalisierung → Klassifikation → Regelengine → Scheduling.
+- **`core`** enthält nur reine Logik. Er läuft auf der JVM und wird hier auf Windows mit `gradlew :core:jvmTest` getestet. Die Apple-Ziele kommen in der iPhone-Phase dazu, sie lassen sich nur auf dem Mac bauen. Für iPhone und Mac wird `core` als XCFramework eingebunden, Swift ruft ihn direkt auf.
+- Zeit kommt immer über ein `Clock`-Interface, nie über die Systemuhr direkt.
+- Die Adapter pro Plattform sind dünn: Sie lesen Termine, übergeben sie an `core` und setzen dessen Plan um (Benachrichtigungen planen, ersetzen, löschen).
 
 **Kernideen**
 
-- **Soll/Ist-Abgleich:** Bei jedem Sync berechnet `Core` die vollständige Liste aller Benachrichtigungen, die existieren sollen. Der Adapter vergleicht sie mit den bei iOS ausstehenden Benachrichtigungen und legt an, ersetzt oder löscht. Verschobene Termine, Absagen und geänderte Einstellungen laufen damit über denselben Weg und wirken sofort auf bereits geplante Erinnerungen.
-- **Stabile IDs:** Die Benachrichtigungs-ID setzt sich aus Erinnerungsart und Duplikatschlüssel zusammen, zum Beispiel `online:<Schlüssel>`. iOS ersetzt eine Benachrichtigung mit gleicher ID, statt eine zweite anzulegen. Die IDs lassen sich jederzeit aus iOS auslesen, ein verlorener Speicher führt also nicht zu Duplikaten.
-- **Sync mit EventKit:** Die App liest beim Start, bei Rückkehr in den Vordergrund, bei Änderungsmeldungen von EventKit (während sie läuft) und in den Hintergrund-Tasks. Neue Termine holt iOS selbst. Die App muss trotzdem laufen, um Erinnerungen neu zu planen.
+- **Soll/Ist-Abgleich:** Bei jedem Sync berechnet `core` die vollständige Liste aller Benachrichtigungen, die existieren sollen. Der Adapter gleicht sie mit dem ab, was geplant ist. Verschobene Termine, Absagen und geänderte Einstellungen laufen damit über denselben Weg und wirken sofort auf bereits geplante Erinnerungen.
+- **Stabile IDs:** Die Benachrichtigungs-ID setzt sich aus Erinnerungsart und Duplikatschlüssel zusammen. Ersetzen statt neu anlegen, deshalb keine Duplikate.
 - **Zeit:** Termine werden in der Gerätezeitzone dargestellt. Ganztägige Termine bleiben Datumsangaben ohne Uhrzeit und verrutschen deshalb beim Sommerzeitwechsel nicht.
-- **Speicher:** Dateischutz „bis zur ersten Entsperrung", damit der Hintergrund-Sync nach einem Neustart lesen kann. Briefing und geplante Erinnerungen funktionieren ohne Netz.
-- **Datenschutz:** Die App selbst baut keine Verbindungen auf. Mit Graph sind die einzigen Ziele die Microsoft-Anmeldung und Graph. Kein Analytics-SDK. Protokolle bleiben lokal (`os.Logger`).
-- **Texte:** von Anfang an in String-Catalogs (Deutsch), Englisch später ergänzbar.
+- **Datenschutz:** keine Netzwerkverbindungen, kein Analytics, Protokolle nur lokal.
+- **Texte:** Deutsch, auf Android in `strings.xml`, auf iOS in String-Catalogs. Englisch später ergänzbar.
 
 ## 4. Erinnerungen und Briefing
-
-Welche Erinnerung für welche Terminart gilt:
 
 | Terminart | Erinnerung (Standard) |
 |---|---|
@@ -125,25 +90,34 @@ Welche Erinnerung für welche Terminart gilt:
 
 Die Vortags-Erinnerung gibt es **nur für Präsenztermine**. Alle Zeiten, Schalter und das Verhalten in der Ruhezeit sind einstellbar (Abschnitt 5).
 
-- **64er-Limit:** Von den 64 Plätzen gehören bis zu 7 den Morgenbriefings der nächsten 7 Tage und einer der Wächter-Benachrichtigung (falls freigegeben, Abschnitt 9). Die übrigen werden nach Auslösezeit mit Terminerinnerungen gefüllt. Bei jedem Sync wird nachgefüllt. Die App zeigt „Erinnerungen geplant bis …".
-- **Ruhezeiten:** wie in Abschnitt 5 des Auftrags. Die Logik ist eine reine Funktion in `Core`: Sie bekommt geplanten Zeitpunkt, Terminbeginn, Erinnerungsart und Konfiguration und liefert den neuen Zeitpunkt oder „verworfen", jeweils mit Begründung. Dieselbe Funktion erzeugt die Vorschau in den Einstellungen. Tests decken Fenster über Mitternacht, beide Sommerzeitwechsel und Termine knapp nach Ende der Ruhezeit ab.
-- **Berechtigungen:** Kalender (nur bei EventKit) und Benachrichtigungen, jeweils erst beim ersten Bedarf angefragt, mit kurzer Erklärung vorher.
-  - Ohne Kalenderzugriff zeigt die App, wie man ihn erteilt, und kann sonst nichts anzeigen.
-  - Ohne Benachrichtigungen zeigt die App einen dauerhaften, deutlichen Hinweis mit Weg zu den iOS-Einstellungen. Das Briefing in der App funktioniert weiter.
+- **Ruhezeiten:** wie in Abschnitt 5 des Auftrags, als reine Funktion in `core` mit Begründung für die Vorschau. Tests decken Fenster über Mitternacht, beide Sommerzeitwechsel und Termine knapp nach Ende der Ruhezeit ab.
+- **Budget:** `core` plant nach Auslösezeit bis zu einem Limit pro Plattform: iOS 64 ausstehende Benachrichtigungen (davon bis zu 7 Morgenbriefings und eine Wächter-Benachrichtigung), Android 400 (Android erlaubt höchstens 500 Alarme pro App). Bei jedem Sync wird nachgefüllt.
+- **Berechtigungen** werden erst bei Bedarf angefragt, mit kurzer Erklärung vorher. Ohne Benachrichtigungs-Berechtigung zeigt die App einen dauerhaften Hinweis, das Briefing funktioniert weiter.
 
-### Ehrliche Grenzen
+### Android
 
-1. **Hintergrundlauf:** iOS entscheidet selbst, wann `BGAppRefreshTask` läuft. Bei regelmäßiger Nutzung meist mehrmals am Tag, garantiert ist das nicht. Nach dem Wegwischen der App, im Stromsparmodus oder bei abgeschalteter Hintergrundaktualisierung läuft gar nichts. `BGProcessingTask` läuft meist nachts am Ladegerät. Erinnerungen sind deshalb immer vorab geplant und kommen auch ohne Hintergrundlauf, allerdings auf dem Stand des letzten Syncs.
-2. **Morgen-Benachrichtigung:** Ihr Inhalt ist statisch und entspricht dem letzten Sync. Im ungünstigsten Fall (App länger nicht geöffnet, kein Hintergrundlauf) ist er mehrere Tage alt. Deshalb steht im Text der Stand („Stand: Sa 21:40"), und beim Antippen synchronisiert die App sofort. Geplant werden die nächsten 7 Tage, damit kein Morgen ohne Benachrichtigung bleibt.
-3. **Änderungen in Outlook** wirken erst, wenn die App das nächste Mal läuft. Bis dahin kommt die Erinnerung eines verschobenen Termins zur alten Zeit, und die eines abgesagten Termins kommt trotzdem.
-4. **Sync-Stand:** Die App zeigt „Zuletzt synchronisiert um …" und warnt ab einer einstellbaren Zeit (Standard 12 Stunden).
-5. **Fokus-Modi** bleiben unangetastet. Ohne bezahlten Account gibt es keine zeitkritischen Benachrichtigungen. Wichtige Termine umgehen dann zwar die eigenen Ruhezeiten, ein aktiver Fokus kann sie aber zurückhalten.
-6. **Doppelte Benachrichtigungen:** Die Outlook-App und Apple Kalender senden eigene Terminerinnerungen. Sobald die App läuft, solltest du deren Mitteilungen abschalten (iOS-Einstellungen → Mitteilungen → Outlook bzw. Kalender). Die App weist beim Einrichten darauf hin. Selbst abschalten kann sie das nicht.
-7. **Anmeldung (nur Graph):** Die Microsoft-Anmeldung kann ablaufen, beim Arbeitskonto auch durch Richtlinien des Arbeitgebers. Dann zeigt die App einen deutlichen Hinweis, und bereits geplante Erinnerungen bleiben bestehen.
+- **Morgenbriefing frisch:** Zur eingestellten Uhrzeit weckt ein Alarm die App, sie liest die Termine neu und erzeugt die Benachrichtigung erst dann. Der Inhalt ist also aktuell.
+- **Änderungen:** Die App reagiert auf Änderungen im Kalenderspeicher (WorkManager mit Content-URI-Trigger) und prüft zusätzlich regelmäßig. Verschobene und abgesagte Termine werden damit meist innerhalb von Minuten nachgeführt.
+- **Exakte Zeiten:** Die Erinnerungen laufen über exakte Alarme (`setExactAndAllowWhileIdle`, Berechtigung `USE_EXACT_ALARM`, die Android Kalender-Apps beim Installieren gewährt).
+- **Neustart und Zeitumstellung:** Android löscht Alarme beim Neustart. Die App plant nach dem Hochfahren, bei Zeit- und Zeitzonenwechsel neu.
+- **Benachrichtigungskanäle** pro Erinnerungsart. Ton und Wichtigkeit lassen sich zusätzlich in den Android-Einstellungen anpassen. Für „wichtige Termine" gibt es einen eigenen Kanal, den du bei „Nicht stören" als Ausnahme erlauben kannst. Die App selbst umgeht „Nicht stören" nie.
+- **Akku-Optimierung:** Samsung schickt selten genutzte Apps in den Tiefschlaf, dann kommen Erinnerungen zu spät oder gar nicht. Die App erkennt das, erklärt, wie man sie auf „Nicht eingeschränkt" stellt, und zeigt einen Hinweis, solange das nicht erledigt ist.
+
+### iPhone
+
+1. **Hintergrundlauf:** iOS entscheidet selbst, wann `BGAppRefreshTask` läuft, garantiert ist das nicht. Erinnerungen sind deshalb immer vorab geplant und kommen auch ohne Hintergrundlauf, allerdings auf dem Stand des letzten Syncs.
+2. **Morgen-Benachrichtigung:** Ihr Inhalt ist statisch und entspricht dem letzten Sync, im ungünstigsten Fall ist er mehrere Tage alt. Deshalb steht im Text der Stand („Stand: Sa 21:40"), und beim Antippen synchronisiert die App sofort.
+3. **Änderungen in Outlook** wirken erst, wenn die App das nächste Mal läuft.
+4. **Fokus-Modi** bleiben unangetastet. Ohne bezahlten Account gibt es keine zeitkritischen Benachrichtigungen, ein aktiver Fokus kann auch wichtige Termine zurückhalten.
+
+### Für beide
+
+- **Sync-Stand:** „Zuletzt synchronisiert um …", Warnung ab einer einstellbaren Zeit (Standard 12 Stunden).
+- **Doppelte Benachrichtigungen:** Outlook-App, Samsung Kalender und Apple Kalender senden eigene Terminerinnerungen. Sobald die App läuft, sollten deren Mitteilungen aus sein. Die App weist beim Einrichten darauf hin, abschalten kann sie das nicht.
 
 ## 5. Einstellungen und Standardwerte
 
-**Grundsatz:** Was sinnvoll individuell einstellbar ist, ist einstellbar. Jede Einstellung hat einen Standardwert, mit dem die App ohne Einrichten funktioniert. Damit die Einstellungen übersichtlich bleiben, stehen die häufigen oben und die Schwellwerte unter „Erweitert". Neue Funktionen bekommen ihre Einstellungen gleich mit und werden in dieser Tabelle ergänzt.
+**Grundsatz:** Was sinnvoll individuell einstellbar ist, ist einstellbar. Jede Einstellung hat einen Standardwert, mit dem die App ohne Einrichten funktioniert. Häufige Einstellungen stehen oben, Schwellwerte unter „Erweitert". Neue Funktionen bekommen ihre Einstellungen gleich mit und werden in dieser Tabelle ergänzt. Die Einstellungen sind auf beiden Plattformen gleich, sie leben in `core`.
 
 | Bereich | Einstellung | Standard |
 |---|---|---|
@@ -183,55 +157,45 @@ Feste Regeln (keine Einstellung nötig):
 
 Jede Phase und jeder Schritt endet mit Tests und einer kurzen Anleitung „So probierst du es aus".
 
-**Phase 0a: Kontentest auf dem iPhone** (erledigt am 08.11.2026: beide Konten klappen, alle 3 Kalender sichtbar)
+**Phase 0a: Kontentest auf dem iPhone** · erledigt (beide Konten klappen). Offen: Steht bei Teams-Terminen der Link in den Notizen?
 
-1. iOS-Einstellungen → Kalender → Kalender-Accounts → Account hinzufügen. Das private Konto als „Outlook.com" einrichten, den Schalter „Kalender" einschalten.
-2. Das Arbeitskonto als „Microsoft Exchange" einrichten, nur wenn dein Arbeitgeber das erlaubt.
-3. In Apple Kalender prüfen: Sind alle 3 Kalender mit ihren Terminen sichtbar? Einen Teams-Termin öffnen: Steht der Teilnahme-Link in den Notizen?
+**Phase A0: Android-Grundgerüst und Machbarkeit** · jetzt, auf dem Windows-PC
+- Gradle-Projekt mit `core` (Kotlin Multiplatform) und `androidApp` (Compose)
+- erste Kernfunktion mit Tests: Erkennung von Meeting-Links
+- Testansicht: Kalender und Termine der nächsten 7 Tage, mit Prüfwerten (UID vorhanden, Online-Link erkannt, Status)
+- So probierst du es aus: App per USB aufs Handy, Kalenderzugriff erlauben, die Liste mit Samsung Kalender vergleichen.
 
-Ergebnis:
-- Beide Konten klappen: EventKit, keine App-Registrierung nötig.
-- Das Arbeitskonto scheitert: Graph für das Arbeitskonto ([ENTRA-EINRICHTUNG.md](ENTRA-EINRICHTUNG.md)) oder die IT fragen.
+**Phase 1: Kern auf Android**
+- 1a: `core`-Logik mit Unit-Tests: Normalisierung, Klassifikation mit Begründung, Duplikate, Serientermine, Zeitzonen und Sommerzeit, Einstellungen, Ruhezeiten, Scheduling mit Budget, Briefing
+- 1b: Android-Adapter: Kalenderspeicher, Speicher für Einstellungen und Overrides, Sync (Start, Änderungen, regelmäßig, Neustart)
+- 1c: Benachrichtigungen mit „Teilnehmen", exakte Alarme, Kanäle, Soll/Ist-Abgleich, Berechtigungen und Hinweise (inkl. Akku-Optimierung)
+- 1d: Oberfläche: Briefing, Kalender, alle Einstellungen aus Abschnitt 5, Ruhezeiten mit Vorschau, Overrides. Vorher bekommst du ein Design-Mockup zur Abstimmung.
+- Abschluss: Akzeptanzkriterien (Abschnitt 7) auf Android
 
-**Phase 0b: Projekt und Machbarkeit auf dem Mac**
+**Phase 1i: iPhone** · auf dem Mac
+- Apple-Ziele für `core`, XCFramework, Xcode-Projekt, `Config.xcconfig`, Bundle-ID
+- iOS-Adapter: EventKit, Benachrichtigungen, BGTasks; SwiftUI-Oberfläche nach demselben Mockup
+- Abschluss: Akzeptanzkriterien auf dem iPhone
 
-- Xcode-Projekt, `Core`-Package, Test-Targets, `Config.xcconfig`, Bundle-ID festlegen
-- Termine der nächsten 7 Tage aus der gewählten Quelle lesen
-- Prüfen: Wie verhalten sich Termin-IDs bei Serien und bei derselben Besprechung in zwei Kalendern?
-- So probierst du es aus: App auf dem iPhone starten, Kalenderzugriff erlauben. Die Termine der nächsten 7 Tage aus allen 3 Kalendern erscheinen als einfache Liste.
+**Phase 2: Komfort** (beide): Snooze und „Erledigt", Widgets, Konflikte über mehrere Tage, Wochenvorschau am Sonntagabend.
 
-**Phase 1: Kern iPhone**
+**Phase 3: optional:** Apple Watch. (Ein Push-Backend ist ohne Microsoft-Anbindung und ohne bezahlten Apple-Account nicht sinnvoll.)
 
-- 1a: `Core`-Logik mit Unit-Tests: Normalisierung, Klassifikation mit Begründung, Duplikate, Serientermine, Zeitzonen und Sommerzeit, Einstellungen, Ruhezeiten, Scheduling mit 64er-Budget, Briefing
-- 1b: Quellen-Adapter, Speicher, Sync (App-Start, Vordergrund, Änderungsmeldungen, Hintergrund), Sync-Status
-- 1c: Benachrichtigungen mit „Teilnehmen", Soll/Ist-Abgleich, Berechtigungen und Hinweise
-- 1d: Oberfläche: Briefing, Kalender, alle Einstellungen aus Abschnitt 5, Ruhezeiten mit Vorschau, Overrides pro Kalender und Termin. Vorher bekommst du ein Design-Mockup zur Abstimmung.
-- Abschluss: Akzeptanzkriterien (Abschnitt 7) als Checkliste
-
-**Phase 2: Komfort iPhone**
-
-Snooze und „Erledigt" in der Benachrichtigung, Widget und Sperrbildschirm-Widget, Konflikte über mehrere Tage, Wochenvorschau am Sonntagabend.
-
-**Phase 3: optional**
-
-Backend für Push-Aktualisierung, Apple Watch. Das Backend braucht einen bezahlten Account (Push) und Graph. Aufwand, laufende Kosten und Datenschutzfolgen lege ich vorher vor.
-
-**Phase 4: Mac**
-
-Menüleisten-App mit Tagesübersicht, Briefing-Fenster und Benachrichtigungen auf Basis von `Core`. Mit EventKit liest der Mac die Konten aus den macOS-Internetaccounts. Jedes Gerät plant seine Erinnerungen selbst, ohne CloudKit (gibt es mit kostenlosem Account nicht). Damit nicht beide Geräte gleichzeitig klingeln, lässt sich jede Erinnerungsart pro Gerät an- und abschalten. Vorschlag: Online-Erinnerungen auf beiden Geräten (Teilnehmen am Mac ist praktisch), alles andere nur auf dem iPhone. Endgültig entschieden wird in Phase 4.
+**Phase 4: Mac:** Menüleisten-App mit Tagesübersicht, Briefing-Fenster und Benachrichtigungen auf Basis von `core` und EventKit. Damit Mac und iPhone nicht gleichzeitig klingeln, lässt sich jede Erinnerungsart pro Gerät an- und abschalten. Vorschlag: Online-Erinnerungen auf beiden Geräten, alles andere nur auf dem iPhone.
 
 **Noch nicht eingeplant** (aus Abschnitt 7 des Auftrags, später nach Absprache): Fahrzeit und Wetter, Vorbereitungsnotizen, Filter und Regeln (Stummschalten, private Termine anonymisieren), Live Activity, Export als Text/PDF.
 
-## 7. Akzeptanzkriterien Phase 1 (angepasst)
+## 7. Akzeptanzkriterien Phase 1 (pro Plattform)
 
-- Zwei verschiedene Outlook-Konten sind verbunden, und das Briefing zeigt Termine aus beiden korrekt sortiert.
+- Zwei verschiedene Konten sind eingebunden, und das Briefing zeigt Termine aus beiden korrekt sortiert.
 - Ein Online-Termin um 10:00 erzeugt um 09:45 eine Benachrichtigung mit funktionierendem Button „Teilnehmen".
-- Ein Präsenztermin übermorgen erscheint im Kapitel „Präsenztermine in 2 Tagen", und am Vortag kommt eine Benachrichtigung. *(geändert: vorher Eintrag in der Erinnerungen-App)*
-- Verschiebst du den Termin in Outlook, wird nach dem nächsten Sync die Erinnerung angepasst, ohne Duplikat. Sagst du den Termin ab, verschwindet sie.
+- Ein Präsenztermin übermorgen erscheint im Kapitel „Präsenztermine in 2 Tagen", und am Vortag kommt eine Benachrichtigung.
+- Wird der Termin verschoben, passt sich die Erinnerung nach dem nächsten Sync an, ohne Duplikat. Wird er abgesagt, verschwindet sie.
 - Dieselbe Besprechung in zwei Kalendern erzeugt genau eine Erinnerung.
-- Bei verweigerter Benachrichtigungs-Berechtigung zeigt die App einen dauerhaften Hinweis mit Weg zu den Einstellungen, und das Briefing funktioniert weiter. *(geändert: vorher Fallback der Erinnerungen-App)*
-- In den Einstellungen lassen sich Ruhezeiten (Zeitfenster, Wochentage, Verhalten pro Erinnerungsart) ändern, und die Änderung wirkt nach dem Speichern auf alle bereits geplanten Erinnerungen.
-- Das Morgenbriefing lässt sich pro Wochentag an- und abschalten und mit eigener Uhrzeit versehen. *(neu)*
+- Bei verweigerter Benachrichtigungs-Berechtigung zeigt die App einen dauerhaften Hinweis mit Weg zu den Einstellungen, und das Briefing funktioniert weiter.
+- Ruhezeiten (Zeitfenster, Wochentage, Verhalten pro Erinnerungsart) lassen sich ändern, und die Änderung wirkt nach dem Speichern auf alle bereits geplanten Erinnerungen.
+- Das Morgenbriefing lässt sich pro Wochentag an- und abschalten und mit eigener Uhrzeit versehen.
+- Nur Android: Nach einem Neustart des Handys kommen die Erinnerungen weiter.
 
 ## 8. Apple-Entwickleraccount
 
@@ -239,48 +203,46 @@ Der kostenlose Account reicht für den Start. Laut Apples Übersicht der Capabil
 
 | Funktion | Kostenlos | Wofür gebraucht |
 |---|---|---|
-| Keychain Sharing | ja | MSAL-Tokens (nur Graph) |
 | Background Modes | ja | Hintergrund-Sync |
 | App Groups | ja | Widget (Phase 2) |
 | Time Sensitive Notifications | nein | „Wichtig" trotz aktivem Fokus |
-| Push Notifications | nein | Backend (Phase 3) |
-| iCloud / CloudKit | nein | Sync zwischen iPhone und Mac |
+| iCloud / CloudKit | nein | nicht geplant |
 | MapKit-Routen | nein | spätere Fahrzeit |
 
-Dazu kommt: Eine mit kostenlosem Account signierte App muss alle 7 Tage aus Xcode neu installiert werden. Die Daten bleiben dabei erhalten. Wenn dich das stört oder eine der gesperrten Funktionen nötig wird, lohnt sich das Apple Developer Program (99 €/Jahr).
+Eine mit kostenlosem Account signierte App muss alle 7 Tage aus Xcode neu installiert werden. Die Daten bleiben dabei erhalten. Eine selbst erstellte IPA umgeht das nicht, AltStore oder SideStore erneuern die Signatur nur automatisch. Über den bezahlten Account (99 €/Jahr) entscheiden wir am Ende von Phase 1i.
 
-Eine selbst erstellte IPA umgeht das nicht. Jede App auf dem iPhone braucht eine Signatur, und die des kostenlosen Accounts gilt 7 Tage, egal wie installiert wird. Tools wie AltStore oder SideStore erneuern sie automatisch, die Einschränkungen in der Tabelle bleiben aber. Über den Account entscheiden wir am Ende von Phase 1. Während der Entwicklung installiert Xcode die App ohnehin ständig neu.
+Android braucht nichts davon: Die APK läuft unbegrenzt.
 
 ## 9. Vorschlag außerhalb des Auftrags (offen, braucht Freigabe)
 
-**Wächter-Benachrichtigung:** Jeder Sync plant eine Benachrichtigung 24 Stunden in die Zukunft und schiebt sie beim nächsten Sync weiter. Sie kommt also nur, wenn die Syncs ausbleiben: „Termine seit … nicht aktualisiert. Bitte App kurz öffnen." Das sichert die Vorgabe ab, dass Erinnerungen nie stillschweigend ausbleiben dürfen. Die Wartezeit wäre einstellbar.
+**Wächter-Benachrichtigung:** Jeder Sync plant eine Benachrichtigung 24 Stunden in die Zukunft und schiebt sie beim nächsten Sync weiter. Sie kommt also nur, wenn die Syncs ausbleiben: „Termine seit … nicht aktualisiert. Bitte App kurz öffnen." Vor allem auf dem iPhone sinnvoll. Die Wartezeit wäre einstellbar.
 
 ## 10. Risiken
 
 | Risiko | Auswirkung | Gegenmaßnahme |
 |---|---|---|
-| Arbeitgeber sperrt das Arbeitskonto in iOS | Arbeitskalender fehlt | Phase 0a testet das zuerst, dann Graph oder IT fragen |
-| Teams-Link fehlt in den Notizen (EventKit) | Online-Termin als Präsenz oder Sonstig erkannt | Phase 0a prüft das, Override pro Kalender und Termin |
-| Hintergrundlauf bleibt aus | Erinnerungen auf altem Stand | Vorab planen, Sync-Stand sichtbar, Wächter (Abschnitt 9) |
-| Doppelte Benachrichtigungen von Outlook und Apple Kalender | Mehrfaches Klingeln | Hinweis beim Einrichten, deren Mitteilungen abschalten |
-| 7-Tage-Signatur | App startet nicht mehr | Wöchentlich aus Xcode installieren oder bezahlter Account |
-| Benachrichtigung weggewischt | Präsenz-Erinnerung übersehen | Mitteilungszentrale, Briefing zeigt anstehende Präsenztermine |
+| Samsung schickt die App in den Tiefschlaf | Erinnerungen kommen zu spät | Hinweis und Anleitung „Nicht eingeschränkt", Prüfung in der App |
+| Meeting-Links fehlen in den Gerätekalendern | Online-Termin falsch erkannt | Phase A0 und 0a prüfen das; Override pro Kalender und Termin |
+| UID fehlt im Android-Kalender | Duplikate schwerer erkennbar | Rückfallebene Titel und Zeiten |
+| Hintergrundlauf auf dem iPhone bleibt aus | Erinnerungen auf altem Stand | Vorab planen, Sync-Stand sichtbar, Wächter (Abschnitt 9) |
+| Doppelte Benachrichtigungen anderer Kalender-Apps | mehrfaches Klingeln | Hinweis beim Einrichten |
+| 7-Tage-Signatur auf dem iPhone | App startet nicht mehr | wöchentlich aus Xcode installieren oder bezahlter Account |
+| Kotlin-Kern auf iOS | zusätzlicher Build-Schritt auf dem Mac | XCFramework per Gradle-Task, in Phase 1i eingerichtet |
 | Zu viele Einstellungen | unübersichtlich | gute Standardwerte, Schwellwerte unter „Erweitert" |
-| Mehr anstehende Terminerinnerungen als Budget | spätere Tage noch nicht geplant | Anzeige „geplant bis", Nachfüllen bei jedem Sync |
 
 ## 11. Design-Richtung
 
 - Eine Hauptansicht: das Briefing als ruhige, scrollbare Seite in der Reihenfolge aus dem Auftrag.
-- Systemschrift (SF Pro), viel Weißraum, Graustufen und genau eine Akzentfarbe.
-- Kalenderfarbe als schmaler Streifen links am Termin, Terminart als SF Symbol (Kamera für Online, Pin für Präsenz, Kreis für Sonstig).
+- Systemschrift, viel Weißraum, Graustufen und genau eine Akzentfarbe. Auf Android Material 3, auf iOS die Apple-Optik, mit denselben Inhalten und derselben Ordnung.
+- Kalenderfarbe als schmaler Streifen links am Termin, Terminart als Symbol (Kamera für Online, Pin für Präsenz, Kreis für Sonstig).
 - Vorläufige Termine: gestrichelter Streifen und der Hinweis „vorläufig".
 - Der Button „Teilnehmen" ist die einzige farbige Fläche am Termin.
 - Einstellungen in klaren Gruppen nach Abschnitt 5, jede Option mit einem Satz Erklärung, „Erweitert" eingeklappt.
-- Dark Mode, Dynamic Type und VoiceOver von Anfang an.
+- Dunkler Modus, große Schrift und Screenreader von Anfang an.
 - Vor Phase 1d gibt es ein Mockup zur Abstimmung.
 
 ## 12. Offen
 
-- Rest von Phase 0a: Steht bei Teams-Terminen der Teilnahme-Link in den Notizen?
-- Geteilte Kalender: wirklich keine?
+- Ergebnisse von Phase A0: UID und Meeting-Links im Android-Kalender
+- Phase 0a: Teams-Link in den Notizen auf dem iPhone
 - Wächter-Benachrichtigung (Abschnitt 9): ja oder nein?

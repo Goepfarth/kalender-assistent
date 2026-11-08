@@ -5,7 +5,15 @@
 xcuserdata/
 *.xcuserstate
 DerivedData/
+
+# Gradle, Kotlin, Android
+.gradle/
+.kotlin/
 build/
+local.properties
+captures/
+.idea/
+*.iml
 
 # Swift Package Manager
 .build/
@@ -15,3 +23,6 @@ build/
 Config.xcconfig
 *.p12
 *.mobileprovision
+*.jks
+*.keystore
+keystore.properties
